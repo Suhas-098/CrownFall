@@ -54,14 +54,17 @@ model MatchPlayer {
 }
 
 model Region {
-  id         String  @id @default(uuid())
+  id         String @id @default(uuid())
   name       String
   regionType String
 
   coastal    Boolean @default(false)
   hasPort    Boolean @default(false)
 
-  ownership RegionOwnership[]
+  ownerships RegionOwnership[]
+
+  outgoingConnections RegionConnection[] @relation("FromRegion")
+  incomingConnections RegionConnection[] @relation("ToRegion")
 }
 
 model PlayerResource {
@@ -100,4 +103,16 @@ model RegionOwnership {
   player MatchPlayer @relation(fields: [playerId], references: [id])
 
   @@unique([regionId])
+}
+
+model RegionConnection {
+  id String @id @default(uuid())
+
+  fromRegionId String
+  toRegionId   String
+
+  fromRegion Region @relation("FromRegion", fields: [fromRegionId], references: [id])
+  toRegion   Region @relation("ToRegion", fields: [toRegionId], references: [id])
+
+  @@unique([fromRegionId, toRegionId])
 }
