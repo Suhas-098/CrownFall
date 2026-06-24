@@ -142,7 +142,10 @@ export const getMatch = async (
   }
 };
 
+//-------------------------
 //Start Match Endpoint
+//-------------------------
+
 export const startMatch = async (
   req: AuthRequest,
   res: Response
@@ -173,52 +176,119 @@ export const startMatch = async (
       return;
     }
 
-    // Initialize resources and AP for every player
-for (const player of match.players) {
-  const existingResource = await prisma.playerResource.findUnique({
-    where: {
-      playerId: player.id
+    if (match.status === "active") {
+      res.status(400).json({
+        message: "Match already started"
+      });
+      return;
     }
-  });
 
-  if (!existingResource) {
-    await prisma.playerResource.create({
-      data: {
-        playerId: player.id,
-        gold: 100,
-        food: 100,
-        iron: 50,
-        influence: 10
+    // =========================
+    // Initialize Resources + AP
+    // =========================
+
+    for (const player of match.players) {
+      const existingResource =
+        await prisma.playerResource.findUnique({
+          where: {
+            playerId: player.id
+          }
+        });
+
+      if (!existingResource) {
+        await prisma.playerResource.create({
+          data: {
+            playerId: player.id,
+            gold: 100,
+            food: 100,
+            iron: 50,
+            influence: 10
+          }
+        });
+      }
+
+      const existingAp =
+        await prisma.playerActionPoints.findUnique({
+          where: {
+            playerId: player.id
+          }
+        });
+
+      if (!existingAp) {
+        await prisma.playerActionPoints.create({
+          data: {
+            playerId: player.id,
+            currentAp: 3,
+            maxAp: 6
+          }
+        });
+      }
+    }
+
+    // =========================
+    // Get Capitals
+    // =========================
+
+    const capitals = await prisma.region.findMany({
+      where: {
+        regionType: "CAPITAL"
       }
     });
-  }
 
-  const existingAp = await prisma.playerActionPoints.findUnique({
-    where: {
-      playerId: player.id
+    if (capitals.length < match.players.length) {
+      res.status(400).json({
+        message: "Not enough capitals available"
+      });
+      return;
     }
-  });
 
-  if (!existingAp) {
-    await prisma.playerActionPoints.create({
+    // =========================
+    // Shuffle Capitals
+    // =========================
+
+    const shuffledCapitals = [...capitals].sort(
+      () => Math.random() - 0.5
+    );
+
+    // =========================
+    // Assign Capitals
+    // =========================
+
+    for (let i = 0; i < match.players.length; i++) {
+      const player = match.players[i];
+      const capital = shuffledCapitals[i];
+
+      const existingOwnership =
+        await prisma.regionOwnership.findUnique({
+          where: {
+            regionId: capital.id
+          }
+        });
+
+      if (!existingOwnership) {
+        await prisma.regionOwnership.create({
+          data: {
+            regionId: capital.id,
+            playerId: player.id,
+            isCapital: true
+          }
+        });
+      }
+    }
+
+    // =========================
+    // Activate Match
+    // =========================
+
+    const updatedMatch = await prisma.match.update({
+      where: {
+        id: matchId
+      },
       data: {
-        playerId: player.id,
-        currentAp: 3,
-        maxAp: 6
+        status: "active",
+        currentRound: 1
       }
     });
-  }
-}
-
-const updatedMatch = await prisma.match.update({
-  where: {
-    id: matchId
-  },
-  data: {
-    status: "active",
-    currentRound: 1
-  }
-});
 
     res.json(updatedMatch);
 

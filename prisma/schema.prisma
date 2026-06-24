@@ -97,6 +97,8 @@ model RegionOwnership {
   regionId  String
   playerId  String
 
+  isCapital Boolean @default(false)
+
   claimedAt DateTime @default(now())
 
   region Region @relation(fields: [regionId], references: [id])
