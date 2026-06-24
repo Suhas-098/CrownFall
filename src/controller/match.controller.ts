@@ -173,15 +173,52 @@ export const startMatch = async (
       return;
     }
 
-    const updatedMatch = await prisma.match.update({
-      where: {
-        id: matchId
-      },
+    // Initialize resources and AP for every player
+for (const player of match.players) {
+  const existingResource = await prisma.playerResource.findUnique({
+    where: {
+      playerId: player.id
+    }
+  });
+
+  if (!existingResource) {
+    await prisma.playerResource.create({
       data: {
-        status: "active",
-        currentRound: 1
+        playerId: player.id,
+        gold: 100,
+        food: 100,
+        iron: 50,
+        influence: 10
       }
     });
+  }
+
+  const existingAp = await prisma.playerActionPoints.findUnique({
+    where: {
+      playerId: player.id
+    }
+  });
+
+  if (!existingAp) {
+    await prisma.playerActionPoints.create({
+      data: {
+        playerId: player.id,
+        currentAp: 3,
+        maxAp: 6
+      }
+    });
+  }
+}
+
+const updatedMatch = await prisma.match.update({
+  where: {
+    id: matchId
+  },
+  data: {
+    status: "active",
+    currentRound: 1
+  }
+});
 
     res.json(updatedMatch);
 
