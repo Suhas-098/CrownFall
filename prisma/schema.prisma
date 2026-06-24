@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  matchPlayers MatchPlayer[]
+}
+
+model Match {
+  id           String   @id @default(uuid())
+  status       String   @default("waiting")
+  currentRound Int      @default(0)
+  maxPlayers   Int      @default(4)
+  createdAt    DateTime @default(now())
+
+  players MatchPlayer[]
+}
+
+model MatchPlayer {
+  id          String @id @default(uuid())
+
+  matchId     String
+  userId      String
+
+  kingdomName String?
+  eliminated  Boolean @default(false)
+
+  match Match @relation(fields: [matchId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  resources    PlayerResource?
+  actionPoints PlayerActionPoints?
+
+  ownedRegions RegionOwnership[]
+
+  @@unique([matchId, userId])
+}
+
+model Region {
+  id         String  @id @default(uuid())
+  name       String
+  regionType String
+
+  coastal    Boolean @default(false)
+  hasPort    Boolean @default(false)
+
+  ownership RegionOwnership[]
+}
+
+model PlayerResource {
+  id         String @id @default(uuid())
+
+  playerId   String @unique
+
+  gold       Int @default(0)
+  food       Int @default(0)
+  iron       Int @default(0)
+  influence  Int @default(0)
+
+  player MatchPlayer @relation(fields: [playerId], references: [id])
+}
+
+model PlayerActionPoints {
+  id         String @id @default(uuid())
+
+  playerId   String @unique
+
+  currentAp  Int @default(3)
+  maxAp      Int @default(6)
+
+  player MatchPlayer @relation(fields: [playerId], references: [id])
+}
+
+model RegionOwnership {
+  id        String   @id @default(uuid())
+
+  regionId  String
+  playerId  String
+
+  claimedAt DateTime @default(now())
+
+  region Region @relation(fields: [regionId], references: [id])
+  player MatchPlayer @relation(fields: [playerId], references: [id])
+
+  @@unique([regionId])
+}
